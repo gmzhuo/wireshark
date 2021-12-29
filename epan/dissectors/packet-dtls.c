@@ -744,6 +744,8 @@ export_pdu_packet(tvbuff_t *tvb, packet_info *pinfo, guint8 tag, const gchar *na
 }
 
 
+extern dissector_handle_t capwap_control_handle, capwap_data_handle;
+
 /*********************************************************************
  *
  * DTLS Dissection Routines
@@ -1059,6 +1061,12 @@ dissect_dtls_record(tvbuff_t *tvb, packet_info *pinfo,
           }
         }
         pinfo->match_uint = saved_match_port;
+
+		if(pinfo->srcport == 5246 || pinfo->destport ==5246) {
+			dissected = call_dissector_only(capwap_control_handle, decrypted, pinfo, top_tree, NULL);
+		} else if(pinfo->srcport == 5247 || pinfo->destport ==5247) {
+			dissected = call_dissector_only(capwap_data_handle, decrypted, pinfo, top_tree, NULL);
+		}
         /* fallback to data dissector */
         if (!dissected)
           call_data_dissector(decrypted, pinfo, top_tree);

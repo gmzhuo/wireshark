@@ -548,6 +548,19 @@ static int hf_capwap_cisco_board_data_options_ap_type = -1;
 static int hf_capwap_cisco_board_data_options_join_priority = -1;
 static int hf_capwap_cisco_unknown = -1;
 
+static int hf_capwap_2013_element_id = -1;
+static int hf_capwap_2013_value = -1;
+static int hf_capwap_2013_radio_id = -1;
+static int hf_capwap_2013_channel_mode = -1;
+static int hf_capwap_2013_channel = -1;
+static int hf_capwap_2013_freq = -1;
+static int hf_capwap_2013_flag = -1;
+static int hf_capwap_2013_allowed_bw = -1;
+static int hf_capwap_2013_min_nf = -1;
+static int hf_capwap_2013_interference_factor = -1;
+static int hf_capwap_2013_dfs_cac_ms = -1;
+static int hf_capwap_2013_unknown = -1;
+
 static int hf_msg_fragments = -1;
 static int hf_msg_fragment = -1;
 static int hf_msg_fragment_overlap = -1;
@@ -600,6 +613,7 @@ static expert_field ei_capwap_message_element_type = EI_INIT;
 static expert_field ei_capwap_fortinet_mac_len = EI_INIT;
 static expert_field ei_capwap_message_element_fortinet_type = EI_INIT;
 static expert_field ei_capwap_message_element_cisco_type = EI_INIT;
+static expert_field ei_capwap_message_element_2013_type = EI_INIT;
 
 static int * const ieee80211_ofdm_control_band_support_flags[] = {
     &hf_capwap_msg_element_type_ieee80211_ofdm_control_band_support_bit0,
@@ -2137,6 +2151,60 @@ dissect_capwap_message_element_vendor_cisco_type(tvbuff_t *tvb, proto_tree *sub_
 
     return offset;
 }
+
+#define VSP_2013_CHANNEL_MODE                 0X41
+static const value_string v2013_element_id_vals[] = {
+    { VSP_2013_CHANNEL_MODE, "Channel Mode" },
+    { 0,     NULL     }
+};
+
+static int
+dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_msg_element_type_tree, guint offset, packet_info *pinfo, guint optlen,  proto_item *msg_element_type_item)
+{
+	guint element_id;
+
+    proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_element_id, tvb, offset, 2, ENC_BIG_ENDIAN);
+    element_id = tvb_get_ntohs(tvb, offset);
+    proto_item_append_text(msg_element_type_item, ": 2013 %s", val_to_str(element_id, v2013_element_id_vals,"Unknown Vendor Specific Element Type (%02d)") );
+    offset += 2;
+
+	/* Remove length and element id to optlen */
+    optlen -= 6;
+    proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_value, tvb, offset, optlen, ENC_NA);
+
+    switch(element_id){
+		case VSP_2013_CHANNEL_MODE: /* MWAR Address (2) */
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_id, tvb, offset, 1, ENC_BIG_ENDIAN);
+            offset += 1;
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_channel_mode, tvb, offset, 2, ENC_BIG_ENDIAN);
+            offset += 2;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_channel, tvb, offset, 2, ENC_BIG_ENDIAN);
+            offset += 2;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_freq, tvb, offset, 4, ENC_BIG_ENDIAN);
+            offset += 4;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_flag, tvb, offset, 4, ENC_BIG_ENDIAN);
+            offset += 4;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_allowed_bw, tvb, offset, 4, ENC_BIG_ENDIAN);
+            offset += 4;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_min_nf, tvb, offset, 1, ENC_BIG_ENDIAN);
+            offset += 1;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_interference_factor, tvb, offset, 8, ENC_BIG_ENDIAN);
+            offset += 8;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_dfs_cac_ms, tvb, offset, 4, ENC_BIG_ENDIAN);
+            offset += 4;
+			break;
+		default:
+            expert_add_info_format(pinfo, msg_element_type_item, &ei_capwap_message_element_2013_type,
+                                 "Dissector for CAPWAP Vendor Specific (2013) Message Element"
+                                 " (%d) type not implemented", element_id);
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_unknown, tvb, offset, optlen, ENC_NA);
+            offset += optlen;
+        break;
+	}
+
+	return offset;
+}
+
 /* Returns the number of bytes consumed by this option. */
 static int
 dissect_capwap_message_element_type(tvbuff_t *tvb, proto_tree *msg_element_type_tree, guint offset, packet_info *pinfo)
@@ -2459,6 +2527,9 @@ hf_capwap_msg_element_type_ac_descriptor_dtls_policy, ett_capwap_ac_descriptor_d
             case VENDOR_CISCO_WIFI:
                 dissect_capwap_message_element_vendor_cisco_type(tvb, sub_msg_element_type_tree, offset+8, pinfo, optlen, msg_element_type_item);
             break;
+			case 8211:
+				dissect_capwap_message_element_vendor_2013_type(tvb, sub_msg_element_type_tree, offset+8, pinfo, optlen, msg_element_type_item);
+			break;
             default:
                 /* No default... */
             break;
@@ -5635,6 +5706,69 @@ proto_register_capwap_control(void)
         },
         { &hf_capwap_cisco_unknown,
             { "Unknown Data", "capwap.control.cisco.unknown",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+
+		/* Cisco Vendor Specific*/
+
+        { &hf_capwap_2013_element_id,
+            { "2013 Element ID", "capwap.control.2013.element_id",
+              FT_UINT16, BASE_DEC, VALS(v2013_element_id_vals), 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_value,
+            { "2013 Value", "capwap.control.2013.value",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_radio_id,
+            { "2013 radio id", "capwap.control.2013.radio_id",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_channel_mode,
+            { "2013 channel mode", "capwap.control.2013.channel_mode",
+              FT_UINT16, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_channel,
+            { "2013 channel", "capwap.control.2013.channel",
+              FT_UINT16, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_freq,
+            { "2013 freq", "capwap.control.2013.freq",
+              FT_UINT32, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_flag,
+            { "2013 flag", "capwap.control.2013.flag",
+              FT_UINT32, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_allowed_bw,
+            { "2013 allowed bw", "capwap.control.2013.allowed_bw",
+              FT_UINT32, BASE_HEX, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_min_nf,
+            { "2013 min nf", "capwap.control.2013.min_nf",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_interference_factor,
+            { "2013 interference factor", "capwap.control.2013.interference_factor",
+              FT_DOUBLE, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_dfs_cac_ms,
+            { "2013 dfs cac ms", "capwap.control.2013.dfs_cac_ms",
+              FT_UINT32, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_unknown,
+            { "Unknown Data", "capwap.control.2013.unknown",
               FT_BYTES, BASE_NONE, NULL, 0x0,
               NULL, HFILL }
         },

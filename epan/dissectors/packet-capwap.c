@@ -559,6 +559,17 @@ static int hf_capwap_2013_allowed_bw = -1;
 static int hf_capwap_2013_min_nf = -1;
 static int hf_capwap_2013_interference_factor = -1;
 static int hf_capwap_2013_dfs_cac_ms = -1;
+static int hf_capwap_2013_station_num = -1;
+static int hf_capwap_2013_pure_auth = -1;
+static int hf_capwap_2013_station_statics_enable = -1;
+static int hf_capwap_2013_station_status_enable = -1;
+static int hf_capwap_2013_wtp_auto_reboot_enable = -1;
+static int hf_capwap_2013_wtp_auto_reboot_hour = -1;
+static int hf_capwap_2013_wtp_auto_reboot_minute = -1;
+static int hf_capwap_2013_wtp_auto_reboot_wdays = -1;
+static int hf_capwap_2013_time_zone = -1;
+static int hf_capwap_2013_time_zone_name = -1;
+
 static int hf_capwap_2013_unknown = -1;
 
 static int hf_msg_fragments = -1;
@@ -2152,8 +2163,18 @@ dissect_capwap_message_element_vendor_cisco_type(tvbuff_t *tvb, proto_tree *sub_
     return offset;
 }
 
-#define VSP_2013_CHANNEL_MODE                 0X41
+#define VSP_2013_PURE_AUTH						0X35
+#define VSP_2013_STATION_STATICS				0X36
+#define VSP_2013_STATION_STATUS					0X38
+#define VSP_2013_WTP_AUTO_REBOOT				0X39
+#define VSP_2013_WTP_CONFIG_VERSION				0X3B
+#define VSP_2013_CHANNEL_MODE					0X41
 static const value_string v2013_element_id_vals[] = {
+	{ VSP_2013_PURE_AUTH, "Pure Auth" },
+	{ VSP_2013_STATION_STATICS, "Station Statics" },
+	{ VSP_2013_STATION_STATUS, "Station Status" },
+	{ VSP_2013_WTP_AUTO_REBOOT, "WTP auto reboot" },
+	{ VSP_2013_WTP_CONFIG_VERSION, "WTP config verison" },	
     { VSP_2013_CHANNEL_MODE, "Channel Mode" },
     { 0,     NULL     }
 };
@@ -2163,17 +2184,54 @@ dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_m
 {
 	guint element_id;
 
-    proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_element_id, tvb, offset, 2, ENC_BIG_ENDIAN);
-    element_id = tvb_get_ntohs(tvb, offset);
-    proto_item_append_text(msg_element_type_item, ": 2013 %s", val_to_str(element_id, v2013_element_id_vals,"Unknown Vendor Specific Element Type (%02d)") );
-    offset += 2;
+	proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_element_id, tvb, offset, 2, ENC_BIG_ENDIAN);
+	element_id = tvb_get_ntohs(tvb, offset);
+	proto_item_append_text(msg_element_type_item, ": 2013 %s", val_to_str(element_id, v2013_element_id_vals,"Unknown Vendor Specific Element Type (%02d)") );
+	offset += 2;
 
 	/* Remove length and element id to optlen */
-    optlen -= 6;
-    proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_value, tvb, offset, optlen, ENC_NA);
+	optlen -= 6;
+	proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_value, tvb, offset, optlen, ENC_NA);
 
-    switch(element_id){
-		case VSP_2013_CHANNEL_MODE: /* MWAR Address (2) */
+	switch(element_id){
+		case VSP_2013_PURE_AUTH: /* Station Statics (0X35) */
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_pure_auth, tvb, offset, 1, ENC_BIG_ENDIAN);
+			offset += 1;
+			break;
+		case VSP_2013_STATION_STATICS: /* Station Statics (0X36) */
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_station_statics_enable, tvb, offset, 4, ENC_BIG_ENDIAN);
+			offset += 4;
+			break;
+		case VSP_2013_STATION_STATUS: /* Station Status (0X38) */
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_station_status_enable, tvb, offset, 1, ENC_BIG_ENDIAN);
+			offset += 1;
+			break;
+		case VSP_2013_WTP_AUTO_REBOOT: /* Station Status (0X39) */
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_wtp_auto_reboot_enable, tvb, offset, 1, ENC_BIG_ENDIAN);
+			offset += 1;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_wtp_auto_reboot_hour, tvb, offset, 1, ENC_BIG_ENDIAN);
+			offset += 1;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_wtp_auto_reboot_minute, tvb, offset, 1, ENC_BIG_ENDIAN);
+			offset += 1;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_wtp_auto_reboot_wdays, tvb, offset, 1, ENC_BIG_ENDIAN);
+			offset += 1;
+			{
+				unsigned char tzone_len = tvb_get_gint8(tvb, offset);
+				offset += 1;
+				if(tzone_len) {
+					proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_time_zone, tvb, offset, tzone_len, ENC_BIG_ENDIAN);
+				}
+				offset += tzone_len;
+
+				unsigned char tzone_name_len = tvb_get_gint8(tvb, offset);
+				offset += 1;
+				if(tzone_name_len) {
+					proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_time_zone_name, tvb, offset, tzone_name_len, ENC_BIG_ENDIAN);
+				}
+				offset += tzone_name_len;
+			}
+			break;
+		case VSP_2013_CHANNEL_MODE: /* Channel Mode (0X41) */
             proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_id, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset += 1;
             proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_channel_mode, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -5767,7 +5825,56 @@ proto_register_capwap_control(void)
               FT_UINT32, BASE_DEC, NULL, 0x0,
               NULL, HFILL }
         },
-        { &hf_capwap_2013_unknown,
+        { &hf_capwap_2013_station_num,
+            { "2013 station num", "capwap.control.2013.station_num",
+              FT_UINT32, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_pure_auth,
+            { "2013 pure_auth", "capwap.control.2013.pure_auth",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_station_statics_enable,
+            { "2013 station statics enable", "capwap.control.2013.station_statics_enable",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_station_status_enable,
+            { "2013 station status enable", "capwap.control.2013.station_statuse_enable",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_wtp_auto_reboot_enable,
+            { "2013 wtp auto reboot enable", "capwap.control.2013.wtp_auto_reboot_enable",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_wtp_auto_reboot_hour,
+            { "2013 wtp reboot hour", "capwap.control.2013.wtp_auto_reboot_hour",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_wtp_auto_reboot_minute,
+            { "2013 wtp reboot minute", "capwap.control.2013.wtp_auto_reboot_minute",
+              FT_UINT8, BASE_DEC, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_wtp_auto_reboot_wdays,
+            { "2013 wtp reboot minute wdays", "capwap.control.2013.wtp_auto_reboot_wdays",
+              FT_UINT8, BASE_HEX, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_time_zone,
+            { "2013 time zone", "capwap.control.2013.time_zone",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_time_zone_name,
+            { "2013 time zone name", "capwap.control.2013.time_zone_name",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },{ &hf_capwap_2013_unknown,
             { "Unknown Data", "capwap.control.2013.unknown",
               FT_BYTES, BASE_NONE, NULL, 0x0,
               NULL, HFILL }

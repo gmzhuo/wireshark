@@ -569,6 +569,21 @@ static int hf_capwap_2013_wtp_auto_reboot_minute = -1;
 static int hf_capwap_2013_wtp_auto_reboot_wdays = -1;
 static int hf_capwap_2013_time_zone = -1;
 static int hf_capwap_2013_time_zone_name = -1;
+static int hf_capwap_2013_raddio_flags = -1;
+static int hf_capwap_2013_mode_flags = -1;
+static int hf_capwap_2013_ht_cap = -1;
+static int hf_capwap_2013_vht_cap = -1;
+static int hf_capwap_2013_ext_cap = -1;
+static int hf_capwap_2013_ext_cap_mask = -1;
+static int hf_capwap_2013_radio_mode = -1;
+static int hf_capwap_2013_mode_ht_cap = -1;
+static int hf_capwap_2013_mcs_set = -1;
+static int hf_capwap_2013_a_mpdu_params = -1;
+static int hf_capwap_2013_radio_vht_cap = -1;
+static int hf_capwap_2013_vht_mcs_set = -1;
+static int hf_capwap_2013_radio_mode_flags = -1;
+static int hf_capwap_2013_radio_he_capab = -1;
+static int hf_capwap_2013_rates = -1;
 
 static int hf_capwap_2013_unknown = -1;
 
@@ -2169,6 +2184,8 @@ dissect_capwap_message_element_vendor_cisco_type(tvbuff_t *tvb, proto_tree *sub_
 #define VSP_2013_WTP_AUTO_REBOOT				0X39
 #define VSP_2013_WTP_CONFIG_VERSION				0X3B
 #define VSP_2013_CHANNEL_MODE					0X41
+#define VSP_2013_RADIO_EXT						0X42
+#define VSP_2013_RADIO_MODE						0X43
 static const value_string v2013_element_id_vals[] = {
 	{ VSP_2013_PURE_AUTH, "Pure Auth" },
 	{ VSP_2013_STATION_STATICS, "Station Statics" },
@@ -2176,8 +2193,50 @@ static const value_string v2013_element_id_vals[] = {
 	{ VSP_2013_WTP_AUTO_REBOOT, "WTP auto reboot" },
 	{ VSP_2013_WTP_CONFIG_VERSION, "WTP config verison" },	
     { VSP_2013_CHANNEL_MODE, "Channel Mode" },
+	{ VSP_2013_RADIO_EXT, "Radio Ext" },	
+    { VSP_2013_RADIO_MODE, "Radio Mode" },
     { 0,     NULL     }
 };
+
+#define STRUCT_PACKED __attribute__ ((packed))
+
+/* HT Capabilities element */
+struct ieee80211_ht_capabilities {
+        unsigned short ht_capabilities_info;
+        unsigned char a_mpdu_params; /* Maximum A-MPDU Length Exponent B0..B1
+                           * Minimum MPDU Start Spacing B2..B4
+                           * Reserved B5..B7 */
+        unsigned char supported_mcs_set[16];
+        unsigned short ht_extended_capabilities;
+        unsigned int tx_bf_capability_info;
+        unsigned char asel_capabilities;
+} STRUCT_PACKED;
+
+struct ieee80211_vht_capabilities {
+        unsigned int vht_capabilities_info;
+        struct {
+                unsigned short rx_map;
+                unsigned short rx_highest;
+                unsigned short tx_map;
+                unsigned short tx_highest;
+        } vht_supported_mcs_set;
+} STRUCT_PACKED;
+
+#define HE_MAX_MAC_CAPAB_SIZE   6
+#define HE_MAX_PHY_CAPAB_SIZE   11
+#define HE_MAX_MCS_CAPAB_SIZE   12
+#define HE_MAX_PPET_CAPAB_SIZE  25
+
+/**
+ * struct he_capabilities - IEEE 802.11ax HE capabilities
+ */
+struct he_capabilities {
+        unsigned char he_supported;
+        unsigned char phy_cap[HE_MAX_PHY_CAPAB_SIZE];
+        unsigned char mac_cap[HE_MAX_MAC_CAPAB_SIZE];
+        unsigned char mcs[HE_MAX_MCS_CAPAB_SIZE];
+        unsigned char ppet[HE_MAX_PPET_CAPAB_SIZE];
+} STRUCT_PACKED;
 
 static int
 dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_msg_element_type_tree, guint offset, packet_info *pinfo, guint optlen,  proto_item *msg_element_type_item)
@@ -2188,6 +2247,9 @@ dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_m
 	element_id = tvb_get_ntohs(tvb, offset);
 	proto_item_append_text(msg_element_type_item, ": 2013 %s", val_to_str(element_id, v2013_element_id_vals,"Unknown Vendor Specific Element Type (%02d)") );
 	offset += 2;
+	unsigned char flags;
+	//unsigned short temp16;
+	//unsigned int temp32;
 
 	/* Remove length and element id to optlen */
 	optlen -= 6;
@@ -2253,6 +2315,63 @@ dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_m
             offset += 8;
 			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_dfs_cac_ms, tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
+			break;
+		case VSP_2013_RADIO_EXT: /* Channel Mode (0X42) */
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_id, tvb, offset, 1, ENC_BIG_ENDIAN);
+            offset += 1;
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_raddio_flags, tvb, offset, 8, ENC_BIG_ENDIAN);
+            offset += 8;
+			flags = tvb_get_gint8(tvb, offset);
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_mode_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
+            offset += 1;
+			if(flags & 1) {
+				proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_ht_cap, tvb, offset, sizeof(struct ieee80211_ht_capabilities), ENC_BIG_ENDIAN);
+				offset += sizeof(struct ieee80211_ht_capabilities);
+			}
+			if(flags & 2) {
+				proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_vht_cap, tvb, offset, sizeof(struct ieee80211_vht_capabilities), ENC_BIG_ENDIAN);
+				offset += sizeof(struct ieee80211_vht_capabilities);
+			}
+
+			flags = tvb_get_gint8(tvb, offset);
+			offset += 1;
+			if(flags) {
+				proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_ext_cap, tvb, offset, flags, ENC_BIG_ENDIAN);
+				offset += flags;
+			}
+
+			flags = tvb_get_gint8(tvb, offset);
+			offset += 1;
+			if(flags) {
+				proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_ext_cap_mask, tvb, offset, flags, ENC_BIG_ENDIAN);
+				offset += flags;
+			}
+			break;
+		case VSP_2013_RADIO_MODE: /* Channel Mode (0X43) */
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_id, tvb, offset, 1, ENC_BIG_ENDIAN);
+            offset += 1;
+            proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_mode, tvb, offset, 2, ENC_BIG_ENDIAN);
+            offset += 2;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_mode_ht_cap, tvb, offset, 2, ENC_BIG_ENDIAN);
+            offset += 2;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_mcs_set, tvb, offset, 16, ENC_BIG_ENDIAN);
+            offset += 16;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_a_mpdu_params, tvb, offset, 1, ENC_BIG_ENDIAN);
+            offset += 1;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_vht_cap, tvb, offset, 4, ENC_BIG_ENDIAN);
+            offset += 4;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_vht_mcs_set, tvb, offset, 8, ENC_BIG_ENDIAN);
+            offset += 8;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_mode_flags, tvb, offset, 4, ENC_BIG_ENDIAN);
+            offset += 4;
+			proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_he_capab, tvb, offset, sizeof(struct he_capabilities), ENC_BIG_ENDIAN);
+			offset += sizeof(struct he_capabilities);
+			flags = tvb_get_gint8(tvb, offset);
+			offset += 1;
+			if(flags) {
+				proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_rates, tvb, offset, flags, ENC_BIG_ENDIAN);
+				offset += flags;
+			}
 			break;
 		default:
             expert_add_info_format(pinfo, msg_element_type_item, &ei_capwap_message_element_2013_type,
@@ -5864,7 +5983,7 @@ proto_register_capwap_control(void)
               NULL, HFILL }
         },
         { &hf_capwap_2013_wtp_auto_reboot_wdays,
-            { "2013 wtp reboot minute wdays", "capwap.control.2013.wtp_auto_reboot_wdays",
+            { "2013 wtp reboot week days", "capwap.control.2013.wtp_auto_reboot_wdays",
               FT_UINT8, BASE_HEX, NULL, 0x0,
               NULL, HFILL }
         },
@@ -5875,6 +5994,81 @@ proto_register_capwap_control(void)
         },
         { &hf_capwap_2013_time_zone_name,
             { "2013 time zone name", "capwap.control.2013.time_zone_name",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_raddio_flags,
+            { "2013 radio flags", "capwap.control.2013.raddio_flags",
+              FT_UINT64, BASE_HEX, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_mode_flags,
+            { "2013 time mode flags", "capwap.control.2013.mode_flags",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_ht_cap,
+            { "2013 ht capabilities", "capwap.control.2013.ht_cap",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_vht_cap,
+            { "2013 vht capabilities", "capwap.control.2013.vht_cap",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_ext_cap,
+            { "2013 ext capabilities", "capwap.control.2013.ext_cap",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_ext_cap_mask,
+            { "2013 ext capabilities", "capwap.control.2013.ext_cap_mask",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_radio_mode,
+            { "2013 radio mode", "capwap.control.2013.radio_mode",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_mode_ht_cap,
+            { "2013 mode ht cap", "capwap.control.2013.mode_ht_cap",
+              FT_UINT16, BASE_HEX, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_mcs_set,
+            { "2013 mcs_set", "capwap.control.2013.mcs_set",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_a_mpdu_params,
+            { "2013 a mpdu params", "capwap.control.2013.a_mpdu_params",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_radio_vht_cap,
+            { "2013 radio vht cap", "capwap.control.2013.radio_vht_cap",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_vht_mcs_set,
+            { "2013 vht mcs set", "capwap.control.2013.vht_mcs_set",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_radio_mode_flags,
+            { "2013 radio mode flags", "capwap.control.2013.radio_mode_flags",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_radio_he_capab,
+            { "2013 he capabilities", "capwap.control.2013.radio_he_capab",
+              FT_BYTES, BASE_NONE, NULL, 0x0,
+              NULL, HFILL }
+        },
+        { &hf_capwap_2013_rates,
+            { "2013 rates", "capwap.control.2013.rates",
               FT_BYTES, BASE_NONE, NULL, 0x0,
               NULL, HFILL }
         },{ &hf_capwap_2013_unknown,

@@ -2198,7 +2198,13 @@ static const value_string v2013_element_id_vals[] = {
     { 0,     NULL     }
 };
 
+
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#define STRUCT_PACKED
+#else
 #define STRUCT_PACKED __attribute__ ((packed))
+#endif /* _MSC_VER */
 
 /* HT Capabilities element */
 struct ieee80211_ht_capabilities {
@@ -2237,6 +2243,12 @@ struct he_capabilities {
         unsigned char mcs[HE_MAX_MCS_CAPAB_SIZE];
         unsigned char ppet[HE_MAX_PPET_CAPAB_SIZE];
 } STRUCT_PACKED;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#else
+#define STRUCT_PACKED
+#endif /* _MSC_VER */
 
 static int
 dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_msg_element_type_tree, guint offset, packet_info *pinfo, guint optlen,  proto_item *msg_element_type_item)

@@ -2246,9 +2246,10 @@ struct he_capabilities {
 
 #ifdef _MSC_VER
 #pragma pack(pop)
-#else
-#define STRUCT_PACKED
 #endif /* _MSC_VER */
+
+#undef STRUCT_PACKED
+
 
 static int
 dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_msg_element_type_tree, guint offset, packet_info *pinfo, guint optlen,  proto_item *msg_element_type_item)

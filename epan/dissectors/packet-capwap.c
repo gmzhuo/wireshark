@@ -2231,6 +2231,9 @@ dissect_capwap_message_element_vendor_2013_type(tvbuff_t *tvb, proto_tree *sub_m
 				offset += tzone_name_len;
 			}
 			break;
+		case VSP_2013_WTP_CONFIG_VERSION: /* WTP config verison (0X3B) */
+			offset += 8;
+			break;
 		case VSP_2013_CHANNEL_MODE: /* Channel Mode (0X41) */
             proto_tree_add_item(sub_msg_element_type_tree, hf_capwap_2013_radio_id, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset += 1;
@@ -5971,7 +5974,8 @@ proto_register_capwap_control(void)
         { &ei_capwap_message_element_type, { "capwap.message_element.type.undecoded", PI_UNDECODED, PI_NOTE, "Dissector for CAPWAP message element Type not implemented, Contact Wireshark developers if you want this supported", EXPFILL }},
         { &ei_capwap_fortinet_mac_len, { "capwap.control.fortinet.mac.length.bad", PI_MALFORMED, PI_ERROR, "Bad length: Should be a multiple of 6", EXPFILL }},
         { &ei_capwap_message_element_fortinet_type, { "capwap.message_element.type.fortinet.undecoded", PI_UNDECODED, PI_NOTE, "Dissector for CAPWAP message element Fortinet Type not implemented", EXPFILL }},
-        { &ei_capwap_message_element_cisco_type, { "capwap.message_element.type.fortinet.undecoded", PI_UNDECODED, PI_NOTE, "Dissector for CAPWAP message element Cisco Type not implemented", EXPFILL }}
+        { &ei_capwap_message_element_cisco_type, { "capwap.message_element.type.fortinet.undecoded", PI_UNDECODED, PI_NOTE, "Dissector for CAPWAP message element Cisco Type not implemented", EXPFILL }},
+		{ &ei_capwap_message_element_2013_type, { "capwap.message_element.type.2013.undecoded", PI_UNDECODED, PI_NOTE, "Dissector for CAPWAP message element 2013 Type not implemented", EXPFILL }}
     };
 
     expert_module_t* expert_capwap;

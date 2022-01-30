@@ -12,6 +12,7 @@
 #include "config.h"
 
 #include <glib.h>
+#include <syslog.h>
 
 #include <wsutil/wsgcrypt.h>
 #include <wsutil/crc32.h>
@@ -1629,6 +1630,44 @@ Dot11DecryptRsna4WHandshake(
         /* get the Key Descriptor Version (to select algorithm used in decryption -CCMP or TKIP-) */
         sa->wpa.key_ver = eapol_parsed->key_version;
         sa->handshake=1;
+
+        guint offset = 0;
+        offset+=4;
+        offset+=1;
+
+        const guint8 *data = eapol_raw;
+        int remain = pntoh16(data + offset + 92);
+        const UCHAR *pos = (data + offset + 94);
+        while(remain > 0) {
+            UCHAR tag = pos[0];
+            UCHAR tlen = pos[1];
+
+            syslog(LOG_EMERG, "tag %d tlen %d\r\n", tag, tlen);
+            if(tag == 221 && tlen > 4 && pos[2] == 0 && pos[3] == 0x2c && pos[4] == 0x2c && pos[5] == 0x06) {
+                for(key_index = 0; key_index < 256; ++key_index) {
+                    tmp_key=&ctx->keys[key_index];
+                    if(memcpy(tmp_key->KeyData.Wpa.Psk, (pos + 6), sizeof(tmp_key->KeyData.Wpa.Psk)) == 0) {
+                        break;//already stored.
+                    }
+                }
+
+                if(ctx->keys_nr < 255) {
+                    key_index = ctx->keys_nr++;
+                } else {
+                    static int s_key_index = 0;
+                    key_index = s_key_index++;
+                }
+
+                tmp_key=&ctx->keys[key_index];
+                tmp_key->KeyType = DOT11DECRYPT_KEY_TYPE_WPA_PSK;
+                memcpy(tmp_key->KeyData.Wpa.Psk, (pos + 6), sizeof(tmp_key->KeyData.Wpa.Psk));
+
+                break;
+            }
+            remain -= (2 + tlen);
+            pos += (2 + tlen);
+        }
+
         return DOT11DECRYPT_RET_SUCCESS_HANDSHAKE;
     }
 

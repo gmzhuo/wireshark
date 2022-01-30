@@ -1652,9 +1652,9 @@ Dot11DecryptRsna4WHandshake(
                 }
 
                 if(ctx->keys_nr < 255) {
-                    key_index = ctx->keys_nr++;
+                    key_index = (INT)ctx->keys_nr++;
                 } else {
-                    static int s_key_index = 0;
+                    static INT s_key_index = 0;
                     key_index = s_key_index++;
                 }
 

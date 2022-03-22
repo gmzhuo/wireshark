@@ -12,7 +12,6 @@
 #include "config.h"
 
 #include <glib.h>
-#include <syslog.h>
 
 #include <wsutil/wsgcrypt.h>
 #include <wsutil/crc32.h>
@@ -1642,7 +1641,6 @@ Dot11DecryptRsna4WHandshake(
             UCHAR tag = pos[0];
             UCHAR tlen = pos[1];
 
-            syslog(LOG_EMERG, "tag %d tlen %d\r\n", tag, tlen);
             if(tag == 221 && tlen > 4 && pos[2] == 0 && pos[3] == 0x2c && pos[4] == 0x2c && pos[5] == 0x06) {
                 for(key_index = 0; key_index < 256; ++key_index) {
                     tmp_key=&ctx->keys[key_index];

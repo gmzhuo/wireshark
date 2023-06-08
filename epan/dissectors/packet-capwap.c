@@ -6223,8 +6223,6 @@ proto_register_capwap_control(void)
 void
 proto_reg_handoff_capwap(void)
 {
-    capwap_control_handle = create_dissector_handle(dissect_capwap_control, proto_capwap_control);
-    capwap_data_handle    = create_dissector_handle(dissect_capwap_data, proto_capwap_data);
     dtls_handle           = find_dissector_add_dependency("dtls", proto_capwap_control);
     find_dissector_add_dependency("dtls", proto_capwap_data);
     ieee8023_handle       = find_dissector_add_dependency("eth_withoutfcs", proto_capwap_data);

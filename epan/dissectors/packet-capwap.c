@@ -23,8 +23,8 @@
 void proto_register_capwap_control(void);
 void proto_reg_handoff_capwap(void);
 
-static dissector_handle_t capwap_control_handle;
-static dissector_handle_t capwap_data_handle;
+dissector_handle_t capwap_control_handle;
+dissector_handle_t capwap_data_handle;
 
 #define UDP_PORT_CAPWAP_CONTROL 5246
 #define UDP_PORT_CAPWAP_DATA 5247
@@ -6219,8 +6219,6 @@ proto_register_capwap_control(void)
     capwap_control_handle = register_dissector("capwap", dissect_capwap_control, proto_capwap_control);
     capwap_data_handle    = register_dissector("capwap.data", dissect_capwap_data, proto_capwap_data);
 }
-
-dissector_handle_t capwap_control_handle, capwap_data_handle;
 
 void
 proto_reg_handoff_capwap(void)
